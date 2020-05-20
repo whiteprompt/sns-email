@@ -81,7 +81,7 @@ functions:
   parseEmail:
     handler: handler.parseEmail
     events:
-      - sns: arn:aws:sns:us-east-1:930170203968:lightning
+      - sns: ${self:custom.SNS_TOPIC}
   login:
     handler: handler.login
     events:
