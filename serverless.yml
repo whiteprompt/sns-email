@@ -1,0 +1,101 @@
+service: sns-email
+
+plugins:
+  - serverless-dynamodb-local
+  - serverless-dotenv-plugin
+  - serverless-offline-dotenv
+  - serverless-offline
+
+custom:
+  dynamodb:
+    stages:
+      - dev
+    start:
+      port: 8000
+      bdPath: local_db/
+      heapInitial: 200m
+      heapMax: 1g
+      migrate: true
+      seed: true
+      convertEmptyValues: true
+    # Uncomment only if you already have a DynamoDB running locally
+    # noStart: true
+  AUTH_SECRET: ${env:AUTH_SECRET}
+  ADMIN_USER: ${env:ADMIN_USER}
+  ADMIN_PASSWORD: ${env:ADMIN_PASSWORD}
+  REGION: ${env:REGION}
+  TABLE_NAME: ${env:TABLE_NAME}
+  SNS_TOPIC: ${env:SNS_TOPIC}
+  NODE_ENV: ${env:NODE_ENV,production}
+
+provider:
+  name: aws
+  runtime: nodejs12.x
+  tags:
+    Client: WhitePrompt
+    Project: Architecture
+  environment:
+    AUTH_SECRET: ${self:custom.AUTH_SECRET}
+    ADMIN_USER: ${self:custom.ADMIN_USER}
+    ADMIN_PASSWORD: ${self:custom.ADMIN_PASSWORD}
+    REGION: ${self:custom.REGION}
+    TABLE_NAME: ${self:custom.TABLE_NAME}
+    SNS_TOPIC: ${self:custom.SNS_TOPIC}
+    NODE_ENV: ${self:custom.NODE_ENV}
+  iamManagedPolicies:
+    - "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:DeleteItem
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+        - dynamodb:Query
+        - dynamodb:Scan
+        - dynamodb:UpdateItem
+      Resource:
+        - "Fn::GetAtt": [ Table, Arn ]
+    - Effect: Allow
+      Action:
+        - ses:SendEmail
+        - ses:SendRawEmail
+      Resource: "*"
+
+resources:
+  Resources:
+    Table:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+        BillingMode: PAY_PER_REQUEST
+        TableName: ${self:custom.TABLE_NAME}
+
+functions:
+  subscriptionsAuthorizer:
+    handler: handler.authorize
+  parseEmail:
+    handler: handler.parseEmail
+    events:
+      - sns: arn:aws:sns:us-east-1:930170203968:lightning
+  login:
+    handler: handler.login
+    events:
+      - http:
+          path: /login
+          method: post
+  createSubscription:
+    handler: handler.createEmailSubscription
+    events:
+      - http:
+          path: /subscriptions
+          method: post
+          authorizer:
+            name: subscriptionsAuthorizer
+            type: TOKEN
+            identitySource: method.request.header.Authorization
+            identityValidationExpression: Bearer (.*)

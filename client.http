@@ -1,0 +1,18 @@
+POST https://xxxx.execute-api.us-east-1.amazonaws.com/dev/login
+Content-Type: application/json
+
+{
+  "user": "verysupersecretadmin",
+  "password": "veryspersecretpassword"
+}
+
+###
+
+POST https://xxxx.execute-api.us-east-1.amazonaws.com/dev/subscriptions
+Content-Type: application/json
+Authorization: Bearer sssss
+
+{
+  "name": "subscription"
+}
+
